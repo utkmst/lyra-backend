@@ -89,3 +89,18 @@ async def process_translation(req: TranslateRequest):
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+import httpx
+
+@app.get("/debug")
+async def debug():
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"https://api-inference.huggingface.co/models/{repo_id}",
+                headers={"Authorization": f"Bearer {hf_token}"},
+                timeout=10
+            )
+            return {"status": r.status_code, "body": r.json()}
+    except Exception as e:
+        return {"error": str(e)}
