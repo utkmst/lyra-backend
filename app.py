@@ -22,14 +22,15 @@ class TranslateRequest(BaseModel):
     persona: str
 
 hf_token = os.environ.get("HF_TOKEN")
-# Yeniden dünyanın en iyi açık kaynaklı modellerinden birine (72B) geçiş yapıyoruz!
-repo_id = "Qwen/Qwen2.5-72B-Instruct" 
+repo_id = "Qwen/Qwen2.5-14B-Instruct" # Hem çok zeki hem de API için mükemmel hızda
 
+# Modeli genel havuza değil, doğrudan kendi özel API odasına yönlendiriyoruz
+direct_url = f"https://api-inference.huggingface.co/models/{repo_id}/v1/"
 # 1. HUGGING FACE'İ OPENAI GİBİ KULLANAN MODERN API BAĞLANTISI
 llm = ChatOpenAI(
     model=repo_id,
     api_key=hf_token,
-    base_url="https://api-inference.huggingface.co/v1/", # Sihrin gerçekleştiği URL
+    base_url=direct_url, # Sihrin gerçekleştiği URL
     max_tokens=512,
     temperature=0.1
 )
@@ -37,7 +38,7 @@ llm = ChatOpenAI(
 llm_creative = ChatOpenAI(
     model=repo_id,
     api_key=hf_token,
-    base_url="https://api-inference.huggingface.co/v1/",
+    base_url=direct_url,
     max_tokens=512,
     temperature=0.7
 )
