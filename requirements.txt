@@ -2,4 +2,4 @@ fastapi
 uvicorn
 pydantic
 langchain
-langchain-huggingface
+langchain-openai
