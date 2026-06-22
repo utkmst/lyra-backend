@@ -2,13 +2,12 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from langchain_huggingface import HuggingFaceEndpoint
-from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 
 app = FastAPI(title="Lyra API")
 
-# Sitenin GitHub Pages adresini buraya ekleyebilirsin, şimdilik herkese açık ('*')
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -22,51 +21,49 @@ class TranslateRequest(BaseModel):
     target_language: str
     persona: str
 
-# 1. MODELİ İNDİRMİYORUZ, API ÜZERİNDEN BAĞLANIYORUZ
 hf_token = os.environ.get("HF_TOKEN")
-# Qwen'in çok daha zeki olan 72B (Milyar) versiyonunu veya Mistral kullanabiliriz!
-repo_id = "Qwen/Qwen2.5-14B-Instruct" 
+# Yeniden dünyanın en iyi açık kaynaklı modellerinden birine (72B) geçiş yapıyoruz!
+repo_id = "Qwen/Qwen2.5-72B-Instruct" 
 
-llm = HuggingFaceEndpoint(
-    repo_id=repo_id,
-    max_new_tokens=512,
-    temperature=0.1,
-    huggingfacehub_api_token=hf_token
+# 1. HUGGING FACE'İ OPENAI GİBİ KULLANAN MODERN API BAĞLANTISI
+llm = ChatOpenAI(
+    model=repo_id,
+    api_key=hf_token,
+    base_url="https://api-inference.huggingface.co/v1/", # Sihrin gerçekleştiği URL
+    max_tokens=512,
+    temperature=0.1
 )
 
-# Daha yaratıcı çeviriler için ikinci bir LLM örneği
-llm_creative = HuggingFaceEndpoint(repo_id=repo_id, max_new_tokens=512, temperature=0.7, huggingfacehub_api_token=hf_token)
+llm_creative = ChatOpenAI(
+    model=repo_id,
+    api_key=hf_token,
+    base_url="https://api-inference.huggingface.co/v1/",
+    max_tokens=512,
+    temperature=0.7
+)
 
-# 2. LANGCHAIN ZİNCİRLERİ (Senin yazdığın kusursuz promp'lar)
+# 2. LANGCHAIN ZİNCİRLERİ (Artık <|im_start|> gibi manuel etiketler yok)
 class SemanticFrame(BaseModel):
-    core_meaning: str = Field(description="The pure propositional content. DO NOT literally translate idioms, metaphors, or slang. Extract their actual underlying factual meaning in plain, boring English.")   
+    core_meaning: str = Field(description="The pure propositional content. DO NOT literally translate idioms, metaphors, or slang. Extract factual meaning.")   
     speech_act: str = Field(description="e.g. request, complaint, compliment, apology, statement")
-    entities: str = Field(description="Key named entities or referents, comma-separated, or 'none'")
+    entities: str = Field(description="Key named entities or referents, or 'none'")
     valence: str = Field(description="Emotional tone of the original")
 
 extract_parser = JsonOutputParser(pydantic_object=SemanticFrame)
 
-extract_template = """<|im_start|>system
-You decompose text into a register-neutral semantic frame.
-CRITICAL INSTRUCTION: You MUST output ONLY valid JSON.
-{format_instructions}<|im_end|>
-<|im_start|>user
-Text: {text}<|im_end|>
-<|im_start|>assistant
-"""
-extract_prompt = PromptTemplate(template=extract_template, input_variables=["text"], partial_variables={"format_instructions": extract_parser.get_format_instructions()})
+# Modern Chat Mimarisi (System ve User mesajları otomatik ayrılır)
+extract_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You decompose text into a register-neutral semantic frame.\nCRITICAL INSTRUCTION: You MUST output ONLY valid JSON.\n{format_instructions}"),
+    ("user", "Text: {text}")
+]).partial(format_instructions=extract_parser.get_format_instructions())
+
 json_chain = extract_prompt | llm | extract_parser
 
-render_template = """<|im_start|>system
-You are a master of sociolinguistics. Reconstruct the following semantic frame into {target_language}.
-SEMANTIC FRAME: Core meaning: {core_meaning}, Speech act: {speech_act}, Emotion: {valence}
-PERSONA: {persona}
-CRITICAL INSTRUCTION: Do NOT translate literally. Write a completely natural, single utterance. Do not add any explanations.<|im_end|>
-<|im_start|>user
-Render the text.<|im_end|>
-<|im_start|>assistant
-"""
-render_prompt = PromptTemplate(template=render_template, input_variables=["target_language", "core_meaning", "speech_act", "valence", "persona"])
+render_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a master of sociolinguistics. Reconstruct the following semantic frame into {target_language}.\nPERSONA: {persona}\nSEMANTIC FRAME: Core meaning: {core_meaning}, Speech act: {speech_act}, Emotion: {valence}\nCRITICAL: Do NOT translate literally. Write a completely natural, single utterance. Do not add any explanations."),
+    ("user", "Render the text.")
+])
+
 render_chain = render_prompt | llm_creative | StrOutputParser()
 
 # 3. ENDPOINT
