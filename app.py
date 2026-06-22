@@ -77,6 +77,15 @@ async def process_translation(req: TranslateRequest):
             "persona": req.persona,
             **data
         })
-        return {"status": "success", "final_translation": render_conclusion}
+        return {
+            "status": "success",
+            "final_translation": render_conclusion,
+            "extracted_data": {           # ✅ Bu alan eksikti
+                "core_meaning": data.get("core_meaning", ""),
+                "speech_act": data.get("speech_act", ""),
+                "entities": data.get("entities", "none"),
+                "valence": data.get("valence", "Neutral"),
+            }
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
