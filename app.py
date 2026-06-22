@@ -25,7 +25,7 @@ class TranslateRequest(BaseModel):
 # 1. MODELİ İNDİRMİYORUZ, API ÜZERİNDEN BAĞLANIYORUZ
 hf_token = os.environ.get("HF_TOKEN")
 # Qwen'in çok daha zeki olan 72B (Milyar) versiyonunu veya Mistral kullanabiliriz!
-repo_id = "Qwen/Qwen2.5-72B-Instruct" 
+repo_id = "Qwen/Qwen2.5-14B-Instruct" 
 
 llm = HuggingFaceEndpoint(
     repo_id=repo_id,
