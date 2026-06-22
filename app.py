@@ -25,7 +25,7 @@ hf_token = os.environ.get("HF_TOKEN")
 repo_id = "Qwen/Qwen2.5-14B-Instruct" # Hem çok zeki hem de API için mükemmel hızda
 
 # Modeli genel havuza değil, doğrudan kendi özel API odasına yönlendiriyoruz
-direct_url = f"https://api-inference.huggingface.co/models/{repo_id}/v1/"
+direct_url = "https://api-inference.huggingface.co/v1/"
 # 1. HUGGING FACE'İ OPENAI GİBİ KULLANAN MODERN API BAĞLANTISI
 llm = ChatOpenAI(
     model=repo_id,
